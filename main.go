@@ -13,7 +13,8 @@ import (
 	"github.com/cyverse-de/go-mod/logging"
 	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse-de/go-mod/protobufjson"
-	"github.com/cyverse-de/monitoring-agent/natsconn"
+	"github.com/cyverse-de/monitoring-api/natsconn"
+	"github.com/cyverse-de/p/go/monitoring"
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
@@ -152,6 +153,22 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("subscribed to %s on queue %s via NATS", pingSubject, pingQueue)
+
+	dnsSubject, dnsQueue, err := natsConn.Subscribe("dns", func(subject, reply string, request *monitoring.DNSCheckResult) {
+
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("subscribed to %s on queue %s via NATS", dnsSubject, dnsQueue)
+
+	hbSubject, hbQueue, err := natsConn.Subscribe("heartbeat", func(subject, reply string, request *monitoring.Heartbeat) {
+
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("subscribed to %s on queue %s via NATS", hbSubject, hbQueue)
 
 	portStr := fmt.Sprintf(":%d", *varsPort)
 	if err = http.ListenAndServe(portStr, nil); err != nil {
