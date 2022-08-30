@@ -92,6 +92,16 @@ func initNATS(c *koanf.Koanf, envPrefix *string) (*natsconn.Connector, error) {
 	return natsConn, err
 }
 
+type DBCheckResult struct {
+	Node         string                 `db:"node"`
+	Error        string                 `db:"error"`
+	Successful   bool                   `db:"successful"`
+	Result       map[string]interface{} `db:"result"`
+	CheckType    string                 `db:"check_type"`
+	DateSent     time.Time              `db:"date_sent"`
+	DateReceived time.Time              `db:"date_received"`
+}
+
 func main() {
 	var (
 		err error
@@ -155,6 +165,26 @@ func main() {
 	log.Infof("subscribed to %s on queue %s via NATS", pingSubject, pingQueue)
 
 	dnsSubject, dnsQueue, err := natsConn.Subscribe("dns", func(subject, reply string, request *monitoring.DNSCheckResult) {
+		var err error
+
+		result := &DBCheckResult{}
+		result.Node = request.Node
+		result.DateReceived = time.Now()
+		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		lookups := request.Lookups
+		success := true
+		for _, l := range lookups {
+			if l.Error != "" {
+				result.Error = result.Error + l.Error + "\n"
+				success = false
+			}
+		}
+		result.Successful = success
 
 	})
 	if err != nil {
@@ -163,7 +193,17 @@ func main() {
 	log.Infof("subscribed to %s on queue %s via NATS", dnsSubject, dnsQueue)
 
 	hbSubject, hbQueue, err := natsConn.Subscribe("heartbeat", func(subject, reply string, request *monitoring.Heartbeat) {
+		var err error
 
+		result := &DBCheckResult{}
+		result.Node = request.Node
+		result.DateReceived = time.Now()
+		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		result.Successful = true
 	})
 	if err != nil {
 		log.Fatal(err)
