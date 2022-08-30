@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	_ "expvar"
 
@@ -16,6 +17,9 @@ import (
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
 const serviceName = "monitoring-agent"
@@ -121,10 +125,21 @@ func main() {
 	}
 	log.Infof("Done reading config from %s", *configPath)
 
+	dbURI := c.String("db.uri")
+	if dbURI == "" {
+		log.Fatal("db.uri must be set in the configuration file")
+	}
+
 	natsConn, err := initNATS(c, envPrefix)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dbconn := otelsqlx.MustConnect("postgres", dbURI,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
+	log.Info("done connecting to the database")
+	dbconn.SetMaxOpenConns(10)
+	dbconn.SetConnMaxIdleTime(time.Minute)
 
 	pingSubject, pingQueue, err := natsConn.Subscribe("ping", func(m *nats.Msg) {
 		log.Info("ping message received")
