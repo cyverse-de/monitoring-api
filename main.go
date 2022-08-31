@@ -201,7 +201,35 @@ type DBCheckConfiguration struct {
 	FormatVersion int    `db:"format_version"`
 }
 
-func (a *App) getCheckConfigurations(ctx context.Context) ([]*DBCheckConfiguration, error) {
+type DBChkCfgQuerySettings struct {
+	hasLimit  bool
+	limit     uint
+	hasOffset bool
+	offset    uint
+}
+
+type DBChkCfgOption func(*DBChkCfgQuerySettings)
+
+func WithChkCfgLimit(limit uint) DBChkCfgOption {
+	return func(s *DBChkCfgQuerySettings) {
+		s.hasLimit = true
+		s.limit = limit
+	}
+}
+
+func WithChkCfgOffset(offset uint) DBChkCfgOption {
+	return func(s *DBChkCfgQuerySettings) {
+		s.hasOffset = true
+		s.offset = offset
+	}
+}
+
+func (a *App) getCheckConfigurations(ctx context.Context, opts ...DBChkCfgOption) ([]*DBCheckConfiguration, error) {
+	querySettings := &DBChkCfgQuerySettings{}
+	for _, opt := range opts {
+		opt(querySettings)
+	}
+
 	cfgT := goqu.T("check_configurations")
 	query := goqu.From(cfgT).
 		Select(
@@ -210,6 +238,15 @@ func (a *App) getCheckConfigurations(ctx context.Context) ([]*DBCheckConfigurati
 			cfgT.Col("configuration"),
 			cfgT.Col("format_version"),
 		)
+
+	if querySettings.hasLimit {
+		query = query.Limit(querySettings.limit)
+	}
+
+	if querySettings.hasOffset {
+		query = query.Offset(querySettings.offset)
+	}
+
 	queryString, _, err := query.ToSQL()
 	if err != nil {
 		return nil, err
