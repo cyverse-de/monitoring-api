@@ -15,6 +15,8 @@ import (
 	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/cyverse-de/monitoring-api/natsconn"
 	"github.com/cyverse-de/p/go/monitoring"
+	"github.com/doug-martin/goqu/v9"
+	"github.com/jmoiron/sqlx"
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
@@ -100,6 +102,139 @@ type DBCheckResult struct {
 	CheckType    string                 `db:"check_type"`
 	DateSent     time.Time              `db:"date_sent"`
 	DateReceived time.Time              `db:"date_received"`
+}
+
+type App struct {
+	dbconn   *sqlx.DB
+	natsConn *natsconn.Connector
+}
+
+func (a *App) getCheckResults(ctx context.Context, limit, offset uint) ([]*DBCheckResult, error) {
+	checkResultsT := goqu.T("check_results")
+	query := goqu.From(checkResultsT).
+		Select(
+			checkResultsT.Col("node"),
+			checkResultsT.Col("error"),
+			checkResultsT.Col("successful"),
+			checkResultsT.Col("check_type"),
+			checkResultsT.Col("date_sent"),
+			checkResultsT.Col("date_received"),
+			checkResultsT.Col("result"),
+		).
+		Order(checkResultsT.Col("date_received").Desc()).
+		Limit(limit).
+		Offset(offset)
+
+	queryString, _, err := query.ToSQL()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := a.dbconn.QueryxContext(ctx, queryString, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*DBCheckResult, 0)
+	for rows.Next() {
+		var r DBCheckResult
+		err = rows.StructScan(&r)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &r)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+type DBCheckType struct {
+	ID          string `db:"id"`
+	Name        string `db:"name"`
+	Description string `db:"description"`
+}
+
+func (a *App) getCheckTypes(ctx context.Context) ([]*DBCheckType, error) {
+	typesT := goqu.T("check_types")
+	query := goqu.From(typesT).
+		Select(
+			typesT.Col("id"),
+			typesT.Col("name"),
+			typesT.Col("description"),
+		)
+	queryString, _, err := query.ToSQL()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.dbconn.QueryxContext(ctx, queryString)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*DBCheckType, 0)
+	for rows.Next() {
+		var r DBCheckType
+		err = rows.StructScan(&r)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &r)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+type DBCheckConfiguration struct {
+	ID            string `db:"id"`
+	CheckType     string `db:"check_type"`
+	Configuration string `db:"configuration"`
+	FormatVersion int    `db:"format_version"`
+}
+
+func (a *App) getCheckConfigurations(ctx context.Context) ([]*DBCheckConfiguration, error) {
+	cfgT := goqu.T("check_configurations")
+	query := goqu.From(cfgT).
+		Select(
+			cfgT.Col("id"),
+			cfgT.Col("check_type"),
+			cfgT.Col("configuration"),
+			cfgT.Col("format_version"),
+		)
+	queryString, _, err := query.ToSQL()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.dbconn.QueryxContext(ctx, queryString)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*DBCheckConfiguration, 0)
+	for rows.Next() {
+		var r DBCheckConfiguration
+		err = rows.StructScan(&r)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &r)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func main() {

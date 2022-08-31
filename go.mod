@@ -8,6 +8,8 @@ require (
 	github.com/cyverse-de/go-mod/otelutils v0.0.3
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
 	github.com/cyverse-de/p/go/monitoring v0.0.2
+	github.com/doug-martin/goqu/v9 v9.18.0
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/knadh/koanf v1.4.3
 	github.com/nats-io/nats.go v1.16.0
 	github.com/sirupsen/logrus v1.9.0
@@ -23,7 +25,6 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
