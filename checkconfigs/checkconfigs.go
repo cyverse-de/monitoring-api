@@ -45,6 +45,28 @@ func New(dbconn *sqlx.DB) *CheckConfigurator {
 	return &CheckConfigurator{dbconn: dbconn}
 }
 
+func (a *CheckConfigurator) AddCheckConfiguration(ctx context.Context, checkConfig *CheckConfiguration, opts ...QueryOption) error {
+	querySettings := &QuerySettings{}
+	for _, opt := range opts {
+		opt(querySettings)
+	}
+
+	cfgT := goqu.T("check_configurations")
+	insertCmd := goqu.Insert(cfgT).Rows(
+		checkConfig,
+	)
+	insertString, _, err := insertCmd.ToSQL()
+	if err != nil {
+		return err
+	}
+	_, err = a.dbconn.ExecContext(ctx, insertString)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a *CheckConfigurator) GetCheckConfigurations(ctx context.Context, opts ...QueryOption) ([]*CheckConfiguration, error) {
 	querySettings := &QuerySettings{}
 	for _, opt := range opts {

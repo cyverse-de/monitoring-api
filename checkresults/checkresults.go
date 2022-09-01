@@ -26,6 +26,20 @@ func New(dbconn *sqlx.DB) *CheckResulter {
 	return &CheckResulter{dbconn: dbconn}
 }
 
+func (c *CheckResulter) InsertCheckResult(ctx context.Context, checkResult *CheckResult) error {
+	checkResultsT := goqu.T("check_results")
+	query := goqu.Insert(checkResultsT).Rows(checkResult)
+	queryString, _, err := query.ToSQL()
+	if err != nil {
+		return err
+	}
+	_, err = c.dbconn.ExecContext(ctx, queryString)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *CheckResulter) GetCheckResults(ctx context.Context, limit, offset uint) ([]*CheckResult, error) {
 	checkResultsT := goqu.T("check_results")
 	query := goqu.From(checkResultsT).

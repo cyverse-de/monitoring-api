@@ -21,6 +21,20 @@ func New(dbconn *sqlx.DB) *CheckTyper {
 	return &CheckTyper{dbconn: dbconn}
 }
 
+func (c *CheckTyper) InsertCheckType(ctx context.Context, checkType *CheckType) error {
+	typesT := goqu.T("check_types")
+	query := goqu.Insert(typesT).Rows(checkType)
+	queryString, _, err := query.ToSQL()
+	if err != nil {
+		return err
+	}
+	_, err = c.dbconn.ExecContext(ctx, queryString)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *CheckTyper) GetCheckTypes(ctx context.Context) ([]*CheckType, error) {
 	typesT := goqu.T("check_types")
 	query := goqu.From(typesT).
