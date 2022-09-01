@@ -8,6 +8,8 @@ import (
 
 	_ "expvar"
 
+	_ "github.com/lib/pq"
+
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/logging"
 	"github.com/cyverse-de/go-mod/protobufjson"

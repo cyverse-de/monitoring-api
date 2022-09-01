@@ -10,6 +10,7 @@ require (
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/knadh/koanf v1.4.3
+	github.com/lib/pq v1.10.1
 	github.com/nats-io/nats.go v1.16.0
 	github.com/sirupsen/logrus v1.9.0
 )
