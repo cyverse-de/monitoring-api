@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/logging"
-	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/cyverse-de/monitoring-api/checkconfigs"
 	"github.com/cyverse-de/monitoring-api/checkresults"
@@ -22,9 +20,6 @@ import (
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
-	"github.com/uptrace/opentelemetry-go-extra/otelsql"
-	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
 const serviceName = "monitoring-agent"
@@ -165,11 +160,6 @@ func main() {
 
 	logging.SetupLogging(*logLevel)
 
-	tracerCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { log.Fatal(e) })
-	defer shutdown()
-
 	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	c, err = cfg.Init(&cfg.Settings{
@@ -194,8 +184,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dbconn := otelsqlx.MustConnect("postgres", dbURI,
-		otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
+	dbconn := sqlx.MustConnect("postgres", dbURI)
 	log.Info("done connecting to the database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
