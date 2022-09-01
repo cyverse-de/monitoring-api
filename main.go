@@ -13,9 +13,11 @@ import (
 	"github.com/cyverse-de/go-mod/logging"
 	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse-de/go-mod/protobufjson"
+	"github.com/cyverse-de/monitoring-api/checkconfigs"
+	"github.com/cyverse-de/monitoring-api/checkresults"
+	"github.com/cyverse-de/monitoring-api/checktypes"
 	"github.com/cyverse-de/monitoring-api/natsconn"
 	"github.com/cyverse-de/p/go/monitoring"
-	"github.com/doug-martin/goqu/v9"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
@@ -94,63 +96,12 @@ func initNATS(c *koanf.Koanf, envPrefix *string) (*natsconn.Connector, error) {
 	return natsConn, err
 }
 
-type DBCheckResult struct {
-	Node         string                 `db:"node"`
-	Error        string                 `db:"error"`
-	Successful   bool                   `db:"successful"`
-	Result       map[string]interface{} `db:"result"`
-	CheckType    string                 `db:"check_type"`
-	DateSent     time.Time              `db:"date_sent"`
-	DateReceived time.Time              `db:"date_received"`
-}
-
 type App struct {
-	dbconn   *sqlx.DB
-	natsConn *natsconn.Connector
-}
-
-func (a *App) getCheckResults(ctx context.Context, limit, offset uint) ([]*DBCheckResult, error) {
-	checkResultsT := goqu.T("check_results")
-	query := goqu.From(checkResultsT).
-		Select(
-			checkResultsT.Col("node"),
-			checkResultsT.Col("error"),
-			checkResultsT.Col("successful"),
-			checkResultsT.Col("check_type"),
-			checkResultsT.Col("date_sent"),
-			checkResultsT.Col("date_received"),
-			checkResultsT.Col("result"),
-		).
-		Order(checkResultsT.Col("date_received").Desc()).
-		Limit(limit).
-		Offset(offset)
-
-	queryString, _, err := query.ToSQL()
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := a.dbconn.QueryxContext(ctx, queryString, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]*DBCheckResult, 0)
-	for rows.Next() {
-		var r DBCheckResult
-		err = rows.StructScan(&r)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, &r)
-	}
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	return results, nil
+	dbconn            *sqlx.DB
+	natsConn          *natsconn.Connector
+	checkResulter     *checkresults.CheckResulter
+	checkConfigurator *checkconfigs.CheckConfigurator
+	checkTyper        *checktypes.CheckTyper
 }
 
 func main() {
@@ -218,7 +169,7 @@ func main() {
 	dnsSubject, dnsQueue, err := natsConn.Subscribe("dns", func(subject, reply string, request *monitoring.DNSCheckResult) {
 		var err error
 
-		result := &DBCheckResult{}
+		result := &checkresults.CheckResult{}
 		result.Node = request.Node
 		result.DateReceived = time.Now()
 		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
@@ -246,7 +197,7 @@ func main() {
 	hbSubject, hbQueue, err := natsConn.Subscribe("heartbeat", func(subject, reply string, request *monitoring.Heartbeat) {
 		var err error
 
-		result := &DBCheckResult{}
+		result := &checkresults.CheckResult{}
 		result.Node = request.Node
 		result.DateReceived = time.Now()
 		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)

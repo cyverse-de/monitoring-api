@@ -1,4 +1,4 @@
-package checkconfig
+package checkconfigs
 
 import (
 	"context"
