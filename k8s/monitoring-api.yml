@@ -76,11 +76,60 @@ spec:
               secretKeyRef:
                 name: configs
                 key: OTEL_TRACES_EXPORTER
+
           - name: OTEL_EXPORTER_JAEGER_ENDPOINT
             valueFrom:
               secretKeyRef:
                 name: configs
                 key: OTEL_EXPORTER_JAEGER_HTTP_ENDPOINT
+
+          - name: DISCOENV_DB_URI
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: MONITORING_DATABASE_URI
+
+          - name: DISCOENV_NATS_TLS_CERT
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_TLS_CERT
+
+          - name: DISCOENV_NATS_TLS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_TLS_KEY
+
+          - name: DISCOENV_NATS_TLS_CA_CERT
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_TLS_CA_CERT
+
+          - name: DISCOENV_NATS_CREDS_PATH
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_CREDS_PATH
+
+          - name: DISCOENV_NATS_RECONNECTS_MAX
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_RECONNECTS_MAX
+
+          - name: DISCOENV_NATS_RECONNECTS_WAIT
+            valueFrom:
+              secretKeyRef:
+                name: configs
+                key: NATS_RECONNECTS_WAIT
+
+          - name: DISCOENV_NATS_BASESUBJECT
+            value: cyverse.monitoring
+
+          - name: DISCOENV_NATS_BASEQUEUE
+            value: cyverse.monitoring
         args:
           - --log-level
           - debug
