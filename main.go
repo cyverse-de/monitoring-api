@@ -104,6 +104,52 @@ type App struct {
 	checkTyper        *checktypes.CheckTyper
 }
 
+func NewApp(dbconn *sqlx.DB, natsConn *natsconn.Connector) *App {
+	return &App{
+		dbconn:            dbconn,
+		natsConn:          natsConn,
+		checkResulter:     checkresults.New(dbconn),
+		checkConfigurator: checkconfigs.New(dbconn),
+		checkTyper:        checktypes.New(dbconn),
+	}
+}
+func (a *App) DNSCheckMsgHandler(subject, reply string, request *monitoring.DNSCheckResult) {
+	var err error
+
+	result := &checkresults.CheckResult{}
+	result.Node = request.Node
+	result.DateReceived = time.Now()
+	result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	lookups := request.Lookups
+	success := true
+	for _, l := range lookups {
+		if l.Error != "" {
+			result.Error = result.Error + l.Error + "\n"
+			success = false
+		}
+	}
+	result.Successful = success
+}
+
+func (a *App) HeartbeatCheckMsgHandler(subject, reply string, request *monitoring.Heartbeat) {
+	var err error
+
+	result := &checkresults.CheckResult{}
+	result.Node = request.Node
+	result.DateReceived = time.Now()
+	result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	result.Successful = true
+}
+
 func main() {
 	var (
 		err error
@@ -154,6 +200,8 @@ func main() {
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
+	app := NewApp(dbconn, natsConn)
+
 	pingSubject, pingQueue, err := natsConn.Subscribe("ping", func(m *nats.Msg) {
 		log.Info("ping message received")
 		err := m.Respond([]byte("pong"))
@@ -166,47 +214,13 @@ func main() {
 	}
 	log.Infof("subscribed to %s on queue %s via NATS", pingSubject, pingQueue)
 
-	dnsSubject, dnsQueue, err := natsConn.Subscribe("dns", func(subject, reply string, request *monitoring.DNSCheckResult) {
-		var err error
-
-		result := &checkresults.CheckResult{}
-		result.Node = request.Node
-		result.DateReceived = time.Now()
-		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		lookups := request.Lookups
-		success := true
-		for _, l := range lookups {
-			if l.Error != "" {
-				result.Error = result.Error + l.Error + "\n"
-				success = false
-			}
-		}
-		result.Successful = success
-
-	})
+	dnsSubject, dnsQueue, err := natsConn.Subscribe("dns", app.DNSCheckMsgHandler)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Infof("subscribed to %s on queue %s via NATS", dnsSubject, dnsQueue)
 
-	hbSubject, hbQueue, err := natsConn.Subscribe("heartbeat", func(subject, reply string, request *monitoring.Heartbeat) {
-		var err error
-
-		result := &checkresults.CheckResult{}
-		result.Node = request.Node
-		result.DateReceived = time.Now()
-		result.DateSent, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", request.DateSent)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		result.Successful = true
-	})
+	hbSubject, hbQueue, err := natsConn.Subscribe("heartbeat", app.HeartbeatCheckMsgHandler)
 	if err != nil {
 		log.Fatal(err)
 	}

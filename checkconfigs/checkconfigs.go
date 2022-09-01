@@ -41,6 +41,10 @@ type CheckConfigurator struct {
 	dbconn *sqlx.DB
 }
 
+func New(dbconn *sqlx.DB) *CheckConfigurator {
+	return &CheckConfigurator{dbconn: dbconn}
+}
+
 func (a *CheckConfigurator) GetCheckConfigurations(ctx context.Context, opts ...QueryOption) ([]*CheckConfiguration, error) {
 	querySettings := &QuerySettings{}
 	for _, opt := range opts {

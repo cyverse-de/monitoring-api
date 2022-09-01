@@ -17,6 +17,10 @@ type CheckTyper struct {
 	dbconn *sqlx.DB
 }
 
+func New(dbconn *sqlx.DB) *CheckTyper {
+	return &CheckTyper{dbconn: dbconn}
+}
+
 func (c *CheckTyper) GetCheckTypes(ctx context.Context) ([]*CheckType, error) {
 	typesT := goqu.T("check_types")
 	query := goqu.From(typesT).

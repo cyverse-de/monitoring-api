@@ -22,6 +22,10 @@ type CheckResulter struct {
 	dbconn *sqlx.DB
 }
 
+func New(dbconn *sqlx.DB) *CheckResulter {
+	return &CheckResulter{dbconn: dbconn}
+}
+
 func (c *CheckResulter) GetCheckResults(ctx context.Context, limit, offset uint) ([]*CheckResult, error) {
 	checkResultsT := goqu.T("check_results")
 	query := goqu.From(checkResultsT).
